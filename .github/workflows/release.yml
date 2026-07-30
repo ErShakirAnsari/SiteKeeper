@@ -56,13 +56,13 @@ jobs:
           cd extension && zip -r "../$ZIP_NAME" . -x "*.DS_Store" && cd ..
           echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.vars.outputs.version }}-${{ steps.vars.outputs.channel }}
-          name: "${{ steps.vars.outputs.channel == 'production' && 'Release' || 'Beta' }} v${{ steps.vars.outputs.version }}"
-          prerelease: ${{ steps.vars.outputs.prerelease }}
-          files: ${{ steps.package.outputs.zip_name }}
+#      - name: Create GitHub Release
+#        uses: softprops/action-gh-release@v2
+#        with:
+#          tag_name: v${{ steps.vars.outputs.version }}-${{ steps.vars.outputs.channel }}
+#          name: "${{ steps.vars.outputs.channel == 'production' && 'Release' || 'Beta' }} v${{ steps.vars.outputs.version }}"
+#          prerelease: ${{ steps.vars.outputs.prerelease }}
+#          files: ${{ steps.package.outputs.zip_name }}
 
       - name: Publish to Chrome Web Store (production)
         if: steps.vars.outputs.channel == 'production'
