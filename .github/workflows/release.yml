@@ -1,0 +1,87 @@
+name: Build & Release Extension
+
+on:
+  push:
+    branches:
+      - "**"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Determine release channel & version
+        id: vars
+        run: |
+          BASE_VERSION=$(node -p "require('./extension/manifest.json').version")
+          BUILD="${{ github.run_number }}"
+          FULL_VERSION="${BASE_VERSION}.${BUILD}"
+
+          if [ "${{ github.ref_name }}" = "master" ] || [ "${{ github.ref_name }}" = "main" ]; then
+            echo "channel=production" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=beta" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=${FULL_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Stamp manifest version for this build
+        run: |
+          node -e "
+            const fs = require('fs');
+            const path = './extension/manifest.json';
+            const m = JSON.parse(fs.readFileSync(path));
+            m.version = '${{ steps.vars.outputs.version }}';
+            if ('${{ steps.vars.outputs.channel }}' === 'beta') {
+              m.name = m.name + ' (Beta)';
+            }
+            fs.writeFileSync(path, JSON.stringify(m, null, 2));
+          "
+
+      - name: Package extension
+        id: package
+        run: |
+          ZIP_NAME="sitekeeper-${{ steps.vars.outputs.channel }}-${{ steps.vars.outputs.version }}.zip"
+          cd extension && zip -r "../$ZIP_NAME" . -x "*.DS_Store" && cd ..
+          echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.vars.outputs.version }}-${{ steps.vars.outputs.channel }}
+          name: "${{ steps.vars.outputs.channel == 'production' && 'Release' || 'Beta' }} v${{ steps.vars.outputs.version }}"
+          prerelease: ${{ steps.vars.outputs.prerelease }}
+          files: ${{ steps.package.outputs.zip_name }}
+
+      - name: Publish to Chrome Web Store (production)
+        if: steps.vars.outputs.channel == 'production'
+        env:
+          CHROME_SERVICE_ACCOUNT_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_KEY }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+        run: node scripts/publish-chrome-webstore.js "${{ steps.package.outputs.zip_name }}"
+
+      - name: Publish to Chrome Web Store (beta)
+        if: steps.vars.outputs.channel == 'beta'
+        env:
+          CHROME_SERVICE_ACCOUNT_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_KEY }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          EXTENSION_ID: ${{ secrets.CHROME_BETA_EXTENSION_ID }}
+        run: |
+          if [ -z "$EXTENSION_ID" ]; then
+            echo "CHROME_BETA_EXTENSION_ID secret not set — skipping Chrome Web Store upload for beta."
+            echo "The beta build is still attached to the GitHub pre-release above."
+            exit 0
+          fi
+          node scripts/publish-chrome-webstore.js "${{ steps.package.outputs.zip_name }}"
