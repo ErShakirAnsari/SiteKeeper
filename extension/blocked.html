@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Site blocked</title>
+  <link rel="stylesheet" href="blocked.css" />
+</head>
+<body>
+  <main class="vault">
+    <div class="lock-icon" aria-hidden="true">
+      <div class="lock-shackle"></div>
+      <div class="lock-body"><span class="lock-keyhole"></span></div>
+    </div>
+
+    <h1>This site is locked</h1>
+    <p id="hostname" class="hostname">example.com</p>
+
+    <form id="unlockForm" class="unlock-form">
+      <div class="mode-row">
+        <label class="radio-row">
+          <input type="radio" name="mode" value="tab" checked />
+          Unlock until this tab/browser closes
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="mode" value="timed" />
+          Unlock for
+          <select id="timedMinutes">
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">60 minutes</option>
+          </select>
+        </label>
+      </div>
+
+      <input
+        id="password"
+        type="password"
+        placeholder="Master password"
+        autocomplete="current-password"
+        autofocus
+      />
+      <p id="error" class="field-error hidden"></p>
+
+      <button type="submit" class="btn btn-accent">Unlock</button>
+    </form>
+
+    <div class="footer-links">
+      <button id="goBack" class="link-btn">Go back</button>
+      <button id="openSettings" class="link-btn">Manage settings</button>
+    </div>
+  </main>
+
+  <script src="blocked.js"></script>
+</body>
+</html>

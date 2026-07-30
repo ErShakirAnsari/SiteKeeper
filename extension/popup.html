@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SiteKeeper</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">SiteKeeper</span>
+      </div>
+      <button id="openOptions" class="icon-btn" title="Settings">⚙</button>
+    </header>
+
+    <div id="noPasswordBanner" class="banner hidden">
+      Set a master password to start blocking sites.
+      <button id="goSetPassword" class="link-btn">Set it up</button>
+    </div>
+
+    <section class="add-row">
+      <input id="addInput" type="text" placeholder="example.com" autocomplete="off" />
+      <button id="addBtn" class="btn btn-accent">Block</button>
+    </section>
+    <p id="addError" class="field-error hidden"></p>
+
+    <section id="siteList" class="site-list">
+      <!-- rows injected by popup.js -->
+    </section>
+
+    <p id="emptyState" class="empty-state hidden">No sites blocked yet. Add one above.</p>
+
+    <footer class="app-footer">
+      <button id="addCurrentTab" class="link-btn">Block this tab's site</button>
+    </footer>
+  </div>
+
+  <!-- Inline unlock/remove dialog -->
+  <div id="dialogOverlay" class="dialog-overlay hidden">
+    <div class="dialog">
+      <h3 id="dialogTitle">Unlock site</h3>
+      <p id="dialogSubtitle" class="dialog-subtitle"></p>
+
+      <div id="unlockModeRow" class="mode-row">
+        <label class="radio-row">
+          <input type="radio" name="mode" value="tab" checked />
+          Until this tab/browser closes
+        </label>
+        <label class="radio-row">
+          <input type="radio" name="mode" value="timed" />
+          Unlock for
+          <select id="timedMinutes">
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">60 minutes</option>
+          </select>
+        </label>
+      </div>
+
+      <input id="dialogPassword" type="password" placeholder="Master password" autocomplete="current-password" />
+      <p id="dialogError" class="field-error hidden"></p>
+
+      <div class="dialog-actions">
+        <button id="dialogCancel" class="btn btn-ghost">Cancel</button>
+        <button id="dialogConfirm" class="btn btn-accent">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

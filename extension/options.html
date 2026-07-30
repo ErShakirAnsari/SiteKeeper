@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SiteKeeper — Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <h1>SiteKeeper</h1>
+    </header>
+
+    <section class="card">
+      <h2 id="passwordCardTitle">Set your master password</h2>
+      <p class="muted">
+        This single password protects every blocked site. It's hashed
+        (PBKDF2-SHA256, salted) before it's ever saved — SiteKeeper never
+        stores or syncs the plaintext password.
+      </p>
+
+      <div id="currentPasswordRow" class="field hidden">
+        <label>Current password</label>
+        <input id="currentPassword" type="password" autocomplete="current-password" />
+      </div>
+      <div class="field">
+        <label id="newPasswordLabel">New password</label>
+        <input id="newPassword" type="password" autocomplete="new-password" />
+      </div>
+      <div class="field">
+        <label>Confirm password</label>
+        <input id="confirmPassword" type="password" autocomplete="new-password" />
+      </div>
+      <p id="passwordError" class="field-error hidden"></p>
+      <p id="passwordSuccess" class="field-success hidden"></p>
+      <button id="savePassword" class="btn btn-accent">Save password</button>
+    </section>
+
+    <section class="card">
+      <h2>Blocked sites</h2>
+      <div class="add-row">
+        <input id="addInput" type="text" placeholder="example.com" autocomplete="off" />
+        <button id="addBtn" class="btn btn-accent">Block site</button>
+      </div>
+      <p id="addError" class="field-error hidden"></p>
+
+      <div id="siteList" class="site-list"></div>
+      <p id="emptyState" class="empty-state hidden">No sites blocked yet.</p>
+    </section>
+
+    <section class="card sync-note">
+      <h2>Sync</h2>
+      <p class="muted">
+        Your blocked-site list and password hash are stored with
+        <code>chrome.storage.sync</code>, so Chrome automatically syncs them
+        to every device signed into your Google account (when Chrome sync is
+        turned on). Temporary unlocks are kept on this device only and never
+        sync.
+      </p>
+    </section>
+  </div>
+
+  <!-- Remove confirmation dialog -->
+  <div id="dialogOverlay" class="dialog-overlay hidden">
+    <div class="dialog">
+      <h3>Remove site</h3>
+      <p id="dialogSubtitle" class="dialog-subtitle"></p>
+      <input id="dialogPassword" type="password" placeholder="Master password" autocomplete="current-password" />
+      <p id="dialogError" class="field-error hidden"></p>
+      <div class="dialog-actions">
+        <button id="dialogCancel" class="btn btn-ghost">Cancel</button>
+        <button id="dialogConfirm" class="btn btn-danger">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
