@@ -1,5 +1,13 @@
 const els = {
   passwordCardTitle: document.getElementById("passwordCardTitle"),
+  passwordMenuWrap: document.getElementById("passwordMenuWrap"),
+  passwordMenuBtn: document.getElementById("passwordMenuBtn"),
+  passwordMenu: document.getElementById("passwordMenu"),
+  menuChangePassword: document.getElementById("menuChangePassword"),
+  menuSyncNow: document.getElementById("menuSyncNow"),
+  passwordSummary: document.getElementById("passwordSummary"),
+  syncStatus: document.getElementById("syncStatus"),
+  passwordFormWrap: document.getElementById("passwordFormWrap"),
   currentPasswordRow: document.getElementById("currentPasswordRow"),
   currentPassword: document.getElementById("currentPassword"),
   newPasswordLabel: document.getElementById("newPasswordLabel"),
@@ -8,6 +16,7 @@ const els = {
   passwordError: document.getElementById("passwordError"),
   passwordSuccess: document.getElementById("passwordSuccess"),
   savePassword: document.getElementById("savePassword"),
+  cancelPasswordEdit: document.getElementById("cancelPasswordEdit"),
 
   addInput: document.getElementById("addInput"),
   addBtn: document.getElementById("addBtn"),
@@ -24,21 +33,71 @@ const els = {
 };
 
 let pendingRemoveId = null;
+let lastState = null;
+// Whether the password form is expanded. Only meaningful once a password
+// already exists — before that, the form is always shown.
+let passwordFormOpen = false;
+let syncStatusTimer = null;
 
 function send(message) {
   return chrome.runtime.sendMessage(message);
 }
 
-function renderSites(state) {
-  if (state.hasPassword) {
-    els.passwordCardTitle.textContent = "Change your master password";
+function clearPasswordFields() {
+  els.currentPassword.value = "";
+  els.newPassword.value = "";
+  els.confirmPassword.value = "";
+  els.passwordError.classList.add("hidden");
+  els.passwordSuccess.classList.add("hidden");
+}
+
+// Applies the current hasPassword + passwordFormOpen combination to the DOM.
+function applyPasswordSectionState(hasPassword) {
+  if (hasPassword) {
+    els.passwordCardTitle.textContent = "Master password";
+    els.passwordMenuWrap.classList.remove("hidden");
+    els.passwordSummary.classList.remove("hidden");
     els.currentPasswordRow.classList.remove("hidden");
-    els.newPasswordLabel.textContent = "New password";
+    els.cancelPasswordEdit.classList.remove("hidden");
+    els.passwordFormWrap.classList.toggle("hidden", !passwordFormOpen);
   } else {
     els.passwordCardTitle.textContent = "Set your master password";
+    els.passwordMenuWrap.classList.add("hidden");
+    els.passwordSummary.classList.add("hidden");
     els.currentPasswordRow.classList.add("hidden");
-    els.newPasswordLabel.textContent = "New password";
+    els.cancelPasswordEdit.classList.add("hidden");
+    els.passwordFormWrap.classList.remove("hidden"); // always visible until a password exists
   }
+}
+
+function closePasswordMenu() {
+  els.passwordMenu.classList.add("hidden");
+}
+
+function openPasswordForm() {
+  passwordFormOpen = true;
+  applyPasswordSectionState(true);
+  els.currentPassword.focus();
+}
+
+function collapsePasswordForm() {
+  passwordFormOpen = false;
+  clearPasswordFields();
+  applyPasswordSectionState(lastState ? lastState.hasPassword : false);
+}
+
+function showSyncStatus(text) {
+  if (syncStatusTimer) clearTimeout(syncStatusTimer);
+  els.syncStatus.textContent = text;
+  els.syncStatus.classList.remove("hidden");
+  syncStatusTimer = setTimeout(() => {
+    els.syncStatus.classList.add("hidden");
+  }, 3000);
+}
+
+function renderSites(state) {
+  lastState = state;
+  applyPasswordSectionState(state.hasPassword);
 
   els.siteList.innerHTML = "";
   els.emptyState.classList.toggle("hidden", state.sites.length > 0);
@@ -84,6 +143,7 @@ function renderSites(state) {
 async function refresh() {
   const state = await send({ type: "GET_STATE" });
   renderSites(state);
+  return state;
 }
 
 function openRemoveDialog(site) {
@@ -136,6 +196,34 @@ els.addInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") els.addBtn.click();
 });
 
+// --- Password dropdown menu -------------------------------------------------
+
+els.passwordMenuBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  els.passwordMenu.classList.toggle("hidden");
+});
+
+document.addEventListener("click", (e) => {
+  if (!els.passwordMenuWrap.contains(e.target)) closePasswordMenu();
+});
+
+els.menuChangePassword.addEventListener("click", () => {
+  closePasswordMenu();
+  openPasswordForm();
+});
+
+els.menuSyncNow.addEventListener("click", async () => {
+  closePasswordMenu();
+  els.menuSyncNow.disabled = true;
+  await refresh();
+  els.menuSyncNow.disabled = false;
+  showSyncStatus("Synced just now");
+});
+
+els.cancelPasswordEdit.addEventListener("click", collapsePasswordForm);
+
+// --- Password form -----------------------------------------------------------
+
 els.savePassword.addEventListener("click", async () => {
   els.passwordError.classList.add("hidden");
   els.passwordSuccess.classList.add("hidden");
@@ -167,7 +255,13 @@ els.savePassword.addEventListener("click", async () => {
   els.newPassword.value = "";
   els.confirmPassword.value = "";
   els.currentPassword.value = "";
-  refresh();
+  await refresh();
+
+  // Give the user a moment to see the confirmation, then fold the form
+  // back into the dropdown-only view (only relevant once a password exists).
+  if (lastState && lastState.hasPassword) {
+    setTimeout(collapsePasswordForm, 1200);
+  }
 });
 
 refresh();

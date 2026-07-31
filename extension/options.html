@@ -13,28 +13,50 @@
     </header>
 
     <section class="card">
-      <h2 id="passwordCardTitle">Set your master password</h2>
-      <p class="muted">
-        This single password protects every blocked site. It's hashed
-        (PBKDF2-SHA256, salted) before it's ever saved — SiteKeeper never
-        stores or syncs the plaintext password.
-      </p>
+      <div class="card-header-row">
+        <h2 id="passwordCardTitle">Set your master password</h2>
+        <div id="passwordMenuWrap" class="menu-wrap hidden">
+          <button id="passwordMenuBtn" class="icon-btn" title="Password options" aria-haspopup="true">
+              <img src="icons/menu.svg" width="16" height="16" alt="Menu">
+          </button>
+          <div id="passwordMenu" class="dropdown-menu hidden">
+            <button id="menuChangePassword" class="dropdown-item">Change password</button>
+            <button id="menuSyncNow" class="dropdown-item">Sync now</button>
+          </div>
+        </div>
+      </div>
 
-      <div id="currentPasswordRow" class="field hidden">
-        <label>Current password</label>
-        <input id="currentPassword" type="password" autocomplete="current-password" />
+      <p id="passwordSummary" class="muted hidden">
+        Your master password is set and syncing with your Google account.
+      </p>
+      <p id="syncStatus" class="sync-status hidden"></p>
+
+      <div id="passwordFormWrap">
+        <p id="passwordFormHint" class="muted">
+          This single password protects every blocked site. It's hashed
+          (PBKDF2-SHA256, salted) before it's ever saved — SiteKeeper never
+          stores or syncs the plaintext password.
+        </p>
+
+        <div id="currentPasswordRow" class="field hidden">
+          <label>Current password</label>
+          <input id="currentPassword" type="password" autocomplete="current-password" />
+        </div>
+        <div class="field">
+          <label id="newPasswordLabel">New password</label>
+          <input id="newPassword" type="password" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label>Confirm password</label>
+          <input id="confirmPassword" type="password" autocomplete="new-password" />
+        </div>
+        <p id="passwordError" class="field-error hidden"></p>
+        <p id="passwordSuccess" class="field-success hidden"></p>
+        <div class="password-form-actions">
+          <button id="savePassword" class="btn btn-accent">Save password</button>
+          <button id="cancelPasswordEdit" class="btn btn-ghost hidden">Cancel</button>
+        </div>
       </div>
-      <div class="field">
-        <label id="newPasswordLabel">New password</label>
-        <input id="newPassword" type="password" autocomplete="new-password" />
-      </div>
-      <div class="field">
-        <label>Confirm password</label>
-        <input id="confirmPassword" type="password" autocomplete="new-password" />
-      </div>
-      <p id="passwordError" class="field-error hidden"></p>
-      <p id="passwordSuccess" class="field-success hidden"></p>
-      <button id="savePassword" class="btn btn-accent">Save password</button>
     </section>
 
     <section class="card">
