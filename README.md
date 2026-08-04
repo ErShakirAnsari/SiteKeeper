@@ -72,19 +72,35 @@ extension itself. There's no way for any Chrome extension to prevent that.
 
 ## CI/CD — GitHub Actions
 
-`.github/workflows/release.yml` runs on every push, to every branch:
+`.github/workflows/release.yml` runs on every push, to every branch, and on
+version tags:
 
-| Push to                | Channel      | GitHub Release              | Chrome Web Store            |
-|-------------------------|-------------|------------------------------|------------------------------|
-| `master` (or `main`)    | Production  | Full release                 | Published via `CHROME_EXTENSION_ID` |
-| any other branch        | Beta        | Pre-release (marked "beta")  | Published via `CHROME_BETA_EXTENSION_ID`, if set — otherwise skipped |
+| Trigger                          | Channel     | GitHub Release              | Chrome Web Store |
+|-----------------------------------|-------------|------------------------------|-------------------|
+| push to `master`/`main`           | Production  | Full release                 | Not published     |
+| push to any other branch          | Beta        | Pre-release (marked "beta")  | Not published     |
+| push a tag matching `v*` (e.g. `v1.2.3`) | Production | Full release, reusing the pushed tag | **Published** via `CHROME_EXTENSION_ID` |
 
-Versioning is automatic: the workflow reads `MAJOR.MINOR.PATCH` from
-`extension/manifest.json` and appends the GitHub Actions run number as a 4th
-segment (e.g. `1.0.0.42`), so every build is guaranteed to have a version
-higher than the last — a Chrome Web Store requirement. Bump
-`MAJOR.MINOR.PATCH` by hand in `manifest.json` whenever you want a "real"
-version bump; the build number keeps incrementing on top of it automatically.
+Only a pushed tag publishes to the Chrome Web Store. Every plain branch push
+— including `master` — still builds the extension and creates a GitHub
+release/pre-release so you always have a downloadable zip, but it stops
+short of the Store. To actually ship a version:
+
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+The tag itself becomes the extension's version (so it must be a plain
+numeric version, optionally prefixed with `v` — up to 4 dot-separated
+segments, e.g. `v1.2.3` or `v1.2.3.4`). The workflow validates this and fails
+fast with a clear error if the tag doesn't match.
+
+For plain branch pushes (no tag), versioning is automatic instead: the
+workflow reads `MAJOR.MINOR.PATCH` from `extension/manifest.json` and
+appends the GitHub Actions run number as a 4th segment (e.g. `1.0.0.42`), so
+build artifacts always have an increasing version even between tagged
+releases.
 
 ### Required repository secrets
 
@@ -98,7 +114,7 @@ its own):
 3. Open the service account → **Keys** tab → **Add key → Create new key → JSON**. This downloads a `.json` key file — keep it private, it's a credential.
 4. In the [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole), go to **Account** and add the service account's email address (found in the JSON key as `client_email`). This grants it authority to manage every item under your publisher account. *Note: a publisher can only have one linked service account.*
 5. Find your **publisher ID** in the Developer Dashboard under **Publisher → Settings**.
-6. Upload your extension **once manually** to the Developer Dashboard to get an item/extension ID (required even for the very first automated publish). Optionally create a second, unlisted item to use as your beta channel — the same service account can manage both, since they share a publisher account.
+6. Upload your extension **once manually** to the Developer Dashboard to get an item/extension ID (required even for the very first automated publish).
 7. Add these as **repository secrets** (Settings → Secrets and variables → Actions):
 
    | Secret                        | Value                                              |
@@ -106,13 +122,6 @@ its own):
    | `CHROME_SERVICE_ACCOUNT_KEY`  | The full contents of the JSON key file from step 3   |
    | `CHROME_PUBLISHER_ID`         | Publisher ID from step 5                             |
    | `CHROME_EXTENSION_ID`         | Item ID of your production listing                   |
-   | `CHROME_BETA_EXTENSION_ID`    | *(optional)* Item ID of a separate beta listing       |
-
-   The Chrome Web Store doesn't have built-in release "channels" — a
-   production/beta split means two separate store listings sharing this
-   codebase. If you don't want a public beta listing, just skip
-   `CHROME_BETA_EXTENSION_ID`; beta pushes will still produce a GitHub
-   pre-release with a downloadable zip, they just won't hit the Web Store.
 
 8. Also confirm **Settings → Actions → General → Workflow permissions** is
    set to "Read and write permissions" so the workflow can create releases.

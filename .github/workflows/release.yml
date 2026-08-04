@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - "**"
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -20,21 +22,45 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Determine release channel & version
+      - name: Determine trigger type, channel & version
         id: vars
         run: |
           BASE_VERSION=$(node -p "require('./extension/manifest.json').version")
           BUILD="${{ github.run_number }}"
-          FULL_VERSION="${BASE_VERSION}.${BUILD}"
 
-          if [ "${{ github.ref_name }}" = "master" ] || [ "${{ github.ref_name }}" = "main" ]; then
-            echo "channel=production" >> "$GITHUB_OUTPUT"
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+            TAG_VERSION="${TAG#v}"
+
+            if ! [[ "$TAG_VERSION" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+              echo "Tag '$TAG' isn't a valid Chrome Web Store version — expected e.g. v1.2.3 (up to 4 numeric segments)." >&2
+              exit 1
+            fi
+
+            IS_TAG="true"
+            CHANNEL="production"
+            PRERELEASE="false"
+            VERSION="$TAG_VERSION"
+            RELEASE_TAG="$TAG"
           else
-            echo "channel=beta" >> "$GITHUB_OUTPUT"
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            IS_TAG="false"
+            VERSION="${BASE_VERSION}.${BUILD}"
+
+            if [ "${{ github.ref_name }}" = "master" ] || [ "${{ github.ref_name }}" = "main" ]; then
+              CHANNEL="production"
+              PRERELEASE="false"
+            else
+              CHANNEL="beta"
+              PRERELEASE="true"
+            fi
+            RELEASE_TAG="v${VERSION}-${CHANNEL}"
           fi
-          echo "version=${FULL_VERSION}" >> "$GITHUB_OUTPUT"
+
+          echo "is_tag=${IS_TAG}" >> "$GITHUB_OUTPUT"
+          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Stamp manifest version for this build
         run: |
@@ -56,32 +82,21 @@ jobs:
           cd extension && zip -r "../$ZIP_NAME" . -x "*.DS_Store" && cd ..
           echo "zip_name=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
 
-#      - name: Create GitHub Release
-#        uses: softprops/action-gh-release@v2
-#        with:
-#          tag_name: v${{ steps.vars.outputs.version }}-${{ steps.vars.outputs.channel }}
-#          name: "${{ steps.vars.outputs.channel == 'production' && 'Release' || 'Beta' }} v${{ steps.vars.outputs.version }}"
-#          prerelease: ${{ steps.vars.outputs.prerelease }}
-#          files: ${{ steps.package.outputs.zip_name }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.release_tag }}
+          name: "${{ steps.vars.outputs.channel == 'production' && 'Release' || 'Beta' }} v${{ steps.vars.outputs.version }}"
+          prerelease: ${{ steps.vars.outputs.prerelease }}
+          files: ${{ steps.package.outputs.zip_name }}
 
-      - name: Publish to Chrome Web Store (production)
-        if: steps.vars.outputs.channel == 'production'
+      # Only a pushed tag (e.g. `git tag v1.2.3 && git push origin v1.2.3`)
+      # publishes to the Chrome Web Store. Plain branch pushes — including
+      # master — only produce the GitHub build/release above.
+      - name: Publish to Chrome Web Store
+        if: steps.vars.outputs.is_tag == 'true'
         env:
           CHROME_SERVICE_ACCOUNT_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_KEY }}
           CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
         run: node scripts/publish-chrome-webstore.js "${{ steps.package.outputs.zip_name }}"
-
-      - name: Publish to Chrome Web Store (beta)
-        if: steps.vars.outputs.channel == 'beta'
-        env:
-          CHROME_SERVICE_ACCOUNT_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_KEY }}
-          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
-          EXTENSION_ID: ${{ secrets.CHROME_BETA_EXTENSION_ID }}
-        run: |
-          if [ -z "$EXTENSION_ID" ]; then
-            echo "CHROME_BETA_EXTENSION_ID secret not set — skipping Chrome Web Store upload for beta."
-            echo "The beta build is still attached to the GitHub pre-release above."
-            exit 0
-          fi
-          node scripts/publish-chrome-webstore.js "${{ steps.package.outputs.zip_name }}"
